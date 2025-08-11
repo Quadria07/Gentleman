@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -9,8 +8,9 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Users, ArrowRight } from "lucide-react"
+import { ArrowRight } from "lucide-react"
 import { motion } from "framer-motion"
+import { sendInvitationRequest } from "@/lib/email"
 
 export default function GentlemenRoundtable() {
   const [formData, setFormData] = useState({
@@ -59,11 +59,35 @@ export default function GentlemenRoundtable() {
     return () => clearInterval(timer)
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [submitMessage, setSubmitMessage] = useState("")
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSubmissionCount((prev) => prev + 1)
-    // Handle form submission logic here
-    console.log("Form submitted:", formData)
+    setIsSubmitting(true)
+    setSubmitMessage("")
+
+    try {
+      const result = await sendInvitationRequest(formData)
+
+      if (result.success) {
+        setSubmissionCount((prev) => prev + 1)
+        setSubmitMessage("Thank you! Your invitation request has been sent successfully.")
+        // Reset form
+        setFormData({
+          fullName: "",
+          email: "",
+          gender: "",
+          country: "",
+        })
+      } else {
+        setSubmitMessage("Sorry, there was an error sending your request. Please try again.")
+      }
+    } catch (error) {
+      setSubmitMessage("Sorry, there was an error sending your request. Please try again.")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleRating = (value: number) => {
@@ -384,32 +408,27 @@ export default function GentlemenRoundtable() {
                   >
                     <Button
                       type="submit"
-                      className="w-full bg-gradient-to-r from-gold-600 to-gold-700 hover:from-gold-700 hover:to-gold-800 text-black font-semibold py-3 shadow-lg hover:shadow-xl transition-all duration-300"
+                      disabled={isSubmitting}
+                      className="w-full bg-gradient-to-r from-gold-600 to-gold-700 hover:from-gold-700 hover:to-gold-800 text-black font-semibold py-3 shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50"
                     >
-                      Request Invitation
+                      {isSubmitting ? "Sending..." : "Request Invitation"}
                     </Button>
                   </motion.div>
-                </form>
 
-                <motion.div
-                  className="mt-6 text-center"
-                  initial={{ opacity: 0 }}
-                  whileInView={{ opacity: 1 }}
-                  transition={{ duration: 0.8, delay: 0.6 }}
-                  viewport={{ once: true }}
-                >
-                  <div className="flex items-center justify-center gap-2 text-gold-400">
-                    <Users className="w-5 h-5" />
-                    <motion.span
-                      className="text-lg font-semibold"
-                      animate={{ scale: [1, 1.05, 1] }}
-                      transition={{ duration: 2, repeat: Number.POSITIVE_INFINITY }}
+                  {submitMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`text-center p-3 rounded-md ${
+                        submitMessage.includes("successfully")
+                          ? "bg-green-900/50 text-green-400 border border-green-700"
+                          : "bg-red-900/50 text-red-400 border border-red-700"
+                      }`}
                     >
-                      {submissionCount.toLocaleString()}
-                    </motion.span>
-                    <span className="text-gray-400">Gentlemen Have Requested Access</span>
-                  </div>
-                </motion.div>
+                      {submitMessage}
+                    </motion.div>
+                  )}
+                </form>
               </CardContent>
             </Card>
           </motion.div>
